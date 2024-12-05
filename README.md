@@ -1,1 +1,1 @@
-# apple
+print('hello world')
