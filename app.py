@@ -69,6 +69,18 @@ def generate_personal_advice(user_data, bmi, bmr, tdee, goal):
 
 請使用口語化、親切的語氣回答，大約 100~150 字。
 """
+try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8
+        )
+        return response['choices'][0]['message']['content']
+
+    except Exception as e:
+        # 僅顯示錯誤類型，不印出任何內容，避免意外洩露金鑰
+        print(f"❗ OpenAI 呼叫錯誤類型：{type(e).__name__}")
+        return "⚠️ 抱歉，AI 建議目前無法取得，請稍後再試 🙇‍♂️"
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
