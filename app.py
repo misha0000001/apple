@@ -69,7 +69,7 @@ def generate_personal_advice(user_data, bmi, bmr, tdee, goal):
 
 請使用口語化、親切的語氣回答，大約 100~150 字。
 """
-try:
+    try:
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
