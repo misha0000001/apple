@@ -6,6 +6,7 @@ from linebot.v3.messaging import (
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
