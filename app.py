@@ -5,12 +5,14 @@ from linebot.v3.messaging import (
     MessagingApi, Configuration, ApiClient, ReplyMessageRequest, TextMessage
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
-import openai
-openai.api_key = os.getenv("OPENAI_API_KEY")
+import google.generativeai as genai
+
+# 讀取金鑰（Render 環境變數中設定）
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = Flask(__name__)
 
-# 初始化 LINE Bot SDK v3
+# LINE Bot 初始化
 channel_access_token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 channel_secret = os.getenv("LINE_CHANNEL_SECRET")
 
@@ -18,35 +20,28 @@ configuration = Configuration(access_token=channel_access_token)
 handler = WebhookHandler(channel_secret)
 messaging_api = MessagingApi(ApiClient(configuration))
 
-
-# 用來暫存使用者資料
 user_temp_data = {}
 
-# 運動量對應係數
 activity_factors = {
     "低": 1.2,
     "中等": 1.55,
     "高": 1.9
 }
 
-# 計算 BMI
 def calculate_bmi(weight, height_cm):
     height_m = height_cm / 100
     return round(weight / (height_m ** 2), 2)
 
-# 計算 BMR
 def calculate_bmr(gender, weight, height, age):
     if gender == '男':
         return round(66 + (13.7 * weight) + (5 * height) - (6.8 * age))
     else:
         return round(655 + (9.6 * weight) + (1.8 * height) - (4.7 * age))
 
-# 計算 TDEE
 def calculate_tdee(bmr, activity_level):
     factor = activity_factors.get(activity_level, 1.55)
     return round(bmr * factor)
 
-# 生成建議
 def generate_personal_advice(user_data, bmi, bmr, tdee, goal):
     prompt = f"""
 使用者基本資料如下：
@@ -62,24 +57,20 @@ def generate_personal_advice(user_data, bmi, bmr, tdee, goal):
 - BMR = {bmr}
 - TDEE = {tdee}
 
-請你幫忙用健康顧問的語氣，為使用者提供針對這些資訊的完整建議，包括：
-1. 營養（蛋白質與熱量攝取）
-2. 運動（訓練頻率與內容）
-3. 注意事項（避免的錯誤）
-
-請使用口語化、親切的語氣回答，大約 100~150 字。
+請你用健康顧問的口吻給出建議，內容包含：
+1. 飲食（蛋白質與熱量）
+2. 運動（頻率與內容）
+3. 錯誤習慣要避免
+用親切的口語化語氣，大約 100~150 字。
 """
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.8
-        )
-        return response['choices'][0]['message']['content']
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
-        print(f"❗ OpenAI 呼叫錯誤類型：{type(e).__name__}")
-        return "⚠️ 抱歉，AI 建議目前無法取得，請稍後再試 🙇‍♂️"
-# 使用者輸入解析
+        print(f"Gemini 錯誤：{type(e).__name__}")
+        return "⚠️ AI 回應目前無法取得，請稍後再試 🙇‍♂️"
+
 def parse_user_input(text):
     try:
         parts = text.replace("，", ",").split(",")
@@ -102,11 +93,10 @@ def parse_user_input(text):
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-
     try:
         handler.handle(body, signature)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"LINE 錯誤：{e}")
         abort(400)
     return 'OK'
 
